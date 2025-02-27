@@ -7,6 +7,7 @@ from .main import (
     ImageInfo,
     ProjectInfo,
     ProjectType,
+    DatasetInfo
 )
 
 __all__ = [
@@ -18,4 +19,5 @@ __all__ = [
     "AnnotatorInfo",
     "AnnotationInfo",
     "EntityClassInfo",
+    "DatasetInfo"
 ]

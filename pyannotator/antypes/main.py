@@ -43,6 +43,16 @@ class ProjectInfo(BaseInfo):
     created_at: str
     updated_at: str
 
+class DatasetInfo(BaseInfo):
+    """Project info on the external tool"""
+
+    id: int
+    name: str | None
+    description: str | None
+    meta: dict[str, Any] | None
+    created_at: str
+    updated_at: str
+
 
 class ImageInfo(BaseInfo):
     """Image info on the external tool"""
