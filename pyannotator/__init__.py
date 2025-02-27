@@ -8,10 +8,10 @@ from .antypes import (
     ProjectInfo,
     ProjectType,
 )
-from .main import AnnoationBackend, AnnotationTool
+from .main import AnnotationBackend, AnnotationTool
 
 __all__ = [
-    AnnoationBackend,
+    AnnotationBackend,
     AnnotationTool,
     AnnotationInfo,
     AnnotatorInfo,

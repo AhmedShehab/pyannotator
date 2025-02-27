@@ -8,6 +8,7 @@ from numpy import ndarray
 from pyannotator.antypes import (
     AnnotationInfo,
     AnnotatorInfo,
+    DatasetInfo,
     EntityClassInfo,
     EntityInfo,
     GeometryType,
@@ -200,27 +201,137 @@ class SlyBackend(IAnnotationBackend):
         )
         return AnnotatorInfo(meta={}, **res.json()) if res.status_code == 200 else None
 
-    def _create_dataset(
+    def create_dataset(
         self,
         project_id: int,
         name: str,
-        description: str,
-    ) -> sly.DatasetInfo:
+        description: str = "",
+    ) -> DatasetInfo:
         """
         Upload a dataset to sly.
 
         :param project_id: sly project id
+        :param project_id: int
         :param name: a name for the dataset, defaults to a random name
-        :param description: a description for the dataset, defaults to ``None``
+        :type name: str
+        :param description: a description for the dataset, defaults to defaults to an empty str
+        :type description: str
 
-        :return: a :py:class:`sly.Dataset` object
+        :return: a dataset info object
+        rtype: DatasetInfo
         """
-        return self.api.dataset.create(
+        dataset_info: sly.DatasetInfo = self.api.dataset.create(
             project_id=project_id,
             name=name,
             description=description,
             change_name_if_conflict=True,
         )
+
+        return DatasetInfo(
+            id=dataset_info.id,
+            name=dataset_info.name,
+            description=dataset_info.description,
+            meta={
+                "project_id": project_id,
+            },
+            created_at=dataset_info.created_at,
+            updated_at=dataset_info.updated_at,
+        )
+
+    def update_dataset(
+        self,
+        dataset_id: int,
+        name: str,
+        description: str = "",
+    ) -> None:
+        """
+        Update a dataset in sly.
+
+        :param kwargs: keyword arguments for dataset update
+        :return: updated dataset info object
+        :rtype: DatasetInfo
+        """
+        self.api.dataset.update(dataset_id, name=name, description=description)
+
+    def list_datasets(self, proj_id: int) -> list[DatasetInfo]:
+        """
+        List all datasets in a project.
+
+        :param proj_id: project id
+        :type proj_id: int
+
+        :return: list of dataset info objects
+        :rtype: list[DatasetInfo]
+        """
+        datasets: list[sly.DatasetInfo] = self.api.dataset.get_list(proj_id)
+        return [
+            DatasetInfo(
+                id=dataset.id,
+                name=dataset.name,
+                description=dataset.description,
+                meta={
+                    "project_id": proj_id,
+                },
+                created_at=dataset.created_at,
+                updated_at=dataset.updated_at,
+            )
+            for dataset in datasets
+        ]
+
+    def list_all_datasets(self) -> list[DatasetInfo]:
+        """
+        List all datasets in the workspace.
+
+        :return: list of dataset info objects
+        :rtype: list[DatasetInfo]
+        """
+        datasets: dict = self.api.dataset.get_list_all()
+        datasets_entities: list[sly.DatasetInfo] = datasets.get("entities", [])
+        return [
+            DatasetInfo(
+                id=dataset.id,
+                name=dataset.name,
+                description=dataset.description,
+                meta={
+                    "project_id": dataset.project_id,
+                },
+                created_at=dataset.created_at,
+                updated_at=dataset.updated_at,
+            )
+            for dataset in datasets_entities
+        ]
+
+    def get_dataset(self, dataset_id: int) -> DatasetInfo:
+        """
+        Get dataset information by id.
+
+        :param dataset_id: dataset id
+        :type dataset_id: int
+
+        :return: dataset info object
+        :rtype: DatasetInfo
+        """
+        dataset_info: sly.DatasetInfo = self.api.dataset.get_info_by_id(dataset_id)
+
+        return DatasetInfo(
+            id=dataset_info.id,
+            name=dataset_info.name,
+            description=dataset_info.description,
+            meta={
+                "project_id": dataset_info.project_id,
+            },
+            created_at=dataset_info.created_at,
+            updated_at=dataset_info.updated_at,
+        )
+
+    def delete_dataset(self, dataset_id) -> None:
+        """
+        Delete a dataset in sly.
+
+        :param dataset_id: dataset id
+        :type dataset_id: int
+        """
+        self.api.dataset.remove(dataset_id)
 
     def create_project(
         self,
@@ -228,8 +339,6 @@ class SlyBackend(IAnnotationBackend):
         description: str = "",
         project_type: ProjectType = ProjectType.IMAGES,
         classes: list[dict[str, Any]] | None = None,
-        images: list[tuple[str, str | str | ndarray]] | None = None,
-        source_type: str = None,
         tags: list[sly.TagMeta] | None = None,
     ) -> ProjectInfo:
         """
@@ -237,29 +346,20 @@ class SlyBackend(IAnnotationBackend):
 
         :param name: a name for the project
         :type name: str
-        :param description: a description for the project, defaults to ``None``
+        :param description: a description for the project, defaults to an empty str
         :type description: str
         :param project_type: the type of the project, defaults to ``ProjectType.IMAGES``
         :type project_type: ProjectType
         :param classes: a list of entity classes, defaults to ``None``
         :type classes: list[EntityClassInfo]
-        :param images: a list of images to upload, defaults to ``None``
-        :type images: list[tuple[str, str | str | ndarray]]
-        :param source_type: the type of the images, defaults to ``None``
-        :type source_type: str
         :param tags: a list of tags, defaults to ``None``
-
-        > images and source_type should be provided together or both `None`.
-        > `source_type` can either be any of these values: ["path", "link", "ndarray"]
+        :type tags: list[sly.TagMeta]
         > The project info meta contains the following data:
             - classes
-            - dataset
-            - images
 
         :return: a project info object
         :rtype: ProjectInfo
         """
-        image_infos = None
         proj = self.api.project.create(
             workspace_id=self.workspace.id,
             name=name,
@@ -276,27 +376,6 @@ class SlyBackend(IAnnotationBackend):
                 project_settings=None,
             ),
         )
-        dataset = self._create_dataset(project_id=proj.id, name=name, description="")
-
-        self.logger.info(f"Created new project [{proj.name}] [id = {proj.id}] ")
-
-        if (images and not source_type) or (source_type and not images):
-            raise ValueError("Images and source_type must be provided together.")
-
-        elif images and source_type:
-            if source_type not in ["paths", "links", "ndarrays"]:
-                raise ValueError(
-                    "source_type must be either 'paths' or 'links' or 'ndarrays'"
-                )
-
-            image_infos = self.upload_images(
-                dataset_id=dataset.id,
-                names=[image[0] for image in images],
-                **{source_type: [image[1] for image in images]},
-            )
-
-        self.current_project_id = proj.id
-        self.current_dataset_id = dataset.id
 
         return ProjectInfo(
             id=proj.id,
@@ -305,12 +384,6 @@ class SlyBackend(IAnnotationBackend):
             type=proj.type,
             meta={
                 "classes": classes,
-                "dataset": {
-                    "id": dataset.id,
-                    "name": dataset.name,
-                    "description": dataset.description,
-                },
-                "images": image_infos,
             },
             created_at=proj.created_at,
             updated_at=proj.updated_at,

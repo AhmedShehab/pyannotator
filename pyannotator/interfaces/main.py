@@ -59,6 +59,10 @@ class IAnnotationBackend(ABC):
         pass
 
     @abstractmethod
+    def list_all_datasets(self, kwargs) -> list[DatasetInfo]:
+        pass
+
+    @abstractmethod
     def get_dataset(self, kwargs) -> DatasetInfo:
         pass
 
