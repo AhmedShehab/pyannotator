@@ -1,22 +1,22 @@
 from .antypes import (
     AnnotationInfo,
     AnnotatorInfo,
-    EntityClassInfo,
-    EntityInfo,
+    LabelClassInfo,
+    LabelInfo,
     GeometryType,
     ImageInfo,
     ProjectInfo,
     ProjectType,
 )
-from .main import AnnoationBackend, AnnotationTool
+from .annotator.main import AnnoationBackend, Annotator
 
 __all__ = [
     AnnoationBackend,
-    AnnotationTool,
+    Annotator,
     AnnotationInfo,
     AnnotatorInfo,
-    EntityClassInfo,
-    EntityInfo,
+    LabelClassInfo,
+    LabelInfo,
     GeometryType,
     ImageInfo,
     ProjectInfo,

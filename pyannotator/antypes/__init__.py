@@ -1,8 +1,8 @@
 from .main import (
     AnnotationInfo,
     AnnotatorInfo,
-    EntityClassInfo,
-    EntityInfo,
+    LabelClassInfo,
+    LabelInfo,
     GeometryType,
     ImageInfo,
     ProjectInfo,
@@ -14,10 +14,10 @@ __all__ = [
     "GeometryType",
     "ProjectType",
     "ImageInfo",
-    "EntityInfo",
+    "LabelInfo",
     "ProjectInfo",
     "AnnotatorInfo",
     "AnnotationInfo",
-    "EntityClassInfo",
+    "LabelClassInfo",
     "DatasetInfo"
 ]

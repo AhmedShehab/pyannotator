@@ -8,10 +8,11 @@ from numpy import ndarray
 from pyannotator.antypes import (
     AnnotationInfo,
     AnnotatorInfo,
-    EntityClassInfo,
-    EntityInfo,
+    DatasetInfo,
     GeometryType,
     ImageInfo,
+    LabelClassInfo,
+    LabelInfo,
     ProjectInfo,
     ProjectType,
 )
@@ -36,7 +37,7 @@ class SlyClass(sly.ObjClass):
         GeometryType.POLYLINE: sly.Polyline,
     }
 
-    def __init__(self, entity_info: EntityClassInfo):
+    def __init__(self, entity_info: LabelClassInfo):
         super().__init__(
             name=entity_info.name,
             geometry_type=self.geometry_type_mapping[entity_info.geometry_type],
@@ -109,7 +110,7 @@ class SlyEntity(sly.Label):
     > sly_entity = SlyEntity(entity_info=EntityInfo(id=1, class_id=10, geometry=[(0,0), (10,10)]))
     """
 
-    def __init__(self, entity_info: EntityInfo, obj_class: sly.ObjClass):
+    def __init__(self, entity_info: LabelInfo, obj_class: sly.ObjClass):
         geometry = sly.Polygon(
             entity_info.geometry
         )  # Adjust geometry conversion as needed
@@ -276,7 +277,7 @@ class SlyBackend(IAnnotationBackend):
                 project_settings=None,
             ),
         )
-        dataset = self._create_dataset(project_id=proj.id, name=name, description="")
+        dataset = self.create_dataset(project_id=proj.id, name=name, description="")
 
         self.logger.info(f"Created new project [{proj.name}] [id = {proj.id}] ")
 
@@ -305,19 +306,100 @@ class SlyBackend(IAnnotationBackend):
             type=proj.type,
             meta={
                 "classes": classes,
-                "dataset": {
-                    "id": dataset.id,
-                    "name": dataset.name,
-                    "description": dataset.description,
-                },
                 "images": image_infos,
             },
             created_at=proj.created_at,
             updated_at=proj.updated_at,
         )
 
-    def update_project(self, kwargs):
-        return super().update_project(kwargs)
+    def get_project(self, proj_id) -> ProjectInfo:
+        """
+        Get project information.
+
+        :param id: project id
+        :return: project information
+        """
+        proj = self.api.project.get_info_by_id(proj_id)
+        return ProjectInfo(
+            id=proj.id,
+            name=proj.name,
+            description=proj.description,
+            type=proj.type,
+            meta={
+                "classes": None,
+                "images": None,
+            },
+            created_at=proj.created_at,
+            updated_at=proj.updated_at,
+        )
+
+    def update_project(
+        self,
+        project_id: int,
+        name: str = None,
+        description: str = None,
+        classes: list[dict[str, Any]] = None,
+        project_type: ProjectType = ProjectType.IMAGES,
+        tags: list[sly.TagMeta] = None,
+    ) -> ProjectInfo:
+        """
+        Update project metadata.
+
+        :param project_id: Project ID
+        :param kwargs: Keyword arguments with project metadata
+
+        :return: None
+        """
+        self.api.project.update(
+            id=project_id,
+            name=name,
+            description=description,
+        )
+
+        if classes or tags or project_type:
+            meta: sly.ProjectMeta = self.api.project.update_meta(
+                id=project_id,
+                meta=sly.ProjectMeta(
+                    obj_classes=self._create_class_obj_collection(classes),
+                    tag_metas=tags,
+                    project_type=project_type,
+                    project_settings=None,
+                ),
+            )
+            self.logger.info(
+                f"Updated project [{project_id}] metadata: {meta.to_json()}"
+            )
+
+        return ProjectInfo(
+            id=project_id,
+            name=name,
+            description=description,
+            type=project_type,
+            meta={
+                "classes": classes,
+                "images": None,
+            },
+        )
+
+    def list_projects(self, kwargs) -> list[ProjectInfo]:
+        """
+        list all projects available in sly.
+
+        :return: list of :py:class:`sly.ProjectInfo` objects
+        """
+        projects_list = self.api.project.get_list_all()["entities"]
+
+        return [
+            ProjectInfo(
+                id=proj.id,
+                name=proj.name,
+                description=proj.description,
+                type=proj.type,
+                created_at=proj.created_at,
+                updated_at=proj.updated_at,
+            )
+            for proj in projects_list
+        ]
 
     def delete_project(self, proj_id):
         return self.api.project.remove(proj_id)
@@ -387,7 +469,22 @@ class SlyBackend(IAnnotationBackend):
             for image in images
         ]
 
-    def download_annotations(self, kwargs):
+    def create_entity(
+        self,
+        geometry: list[int],
+        obj_class: dict[str, Any],
+        text: str | None = None,
+        tags: list[str] | None = None,
+    ) -> LabelInfo:
+        return LabelInfo()
+
+    def create_entities(self, kwargs) -> list[LabelInfo]:
+        pass
+
+    def download_annotation(self, img_id):
+        pass
+
+    def download_annotations(self, dataset_id):
         pass
 
     @classmethod
@@ -421,7 +518,7 @@ class SlyBackend(IAnnotationBackend):
         ```
         """
         return [
-            EntityClassInfo(
+            LabelClassInfo(
                 id=_cls.get("id"),
                 name=_cls.get("name"),
                 color=_cls.get("color"),
@@ -463,7 +560,7 @@ class SlyBackend(IAnnotationBackend):
     def _create_label_obj(
         cls,
         geometry: list[tuple[int | float, int | float]],
-        obj_class: EntityClassInfo,
+        obj_class: LabelClassInfo,
         description: str = None,
         tags=None,
     ) -> sly.Label:

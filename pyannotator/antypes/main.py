@@ -1,16 +1,20 @@
 from typing import Any
 from enum import Enum
 from pydantic import BaseModel as BaseInfo
+from datetime import datetime
+from pyannotator.antypes import geometry
 
 
 class GeometryType(Enum):
-    """Geometry Type enum class, it represents :mod:`supervisely.geometry` types."""
+    """
+    Geometry Type enum class, it represents shapely geometry types.
+    """
 
-    POLYGON = 0
-    BITMAP = 1  # FIXME NOT SUPPORTED YET
-    BBOX = 2
-    POINT = 3
-    POLYLINE = 4
+    POLYGON = geometry.Polygon
+    BITMAP = geometry.Bitmap
+    BBOX = geometry.BBox
+    POINT = geometry.Point
+    POLYLINE = geometry.Polyline
 
 
 class ProjectType(Enum):
@@ -40,8 +44,9 @@ class ProjectInfo(BaseInfo):
     description: str | None
     type: str
     meta: dict[str, Any] | None
-    created_at: str
-    updated_at: str
+    created_at: str = datetime.now().isoformat()
+    updated_at: str = datetime.now().isoformat()
+
 
 class DatasetInfo(BaseInfo):
     """Project info on the external tool"""
@@ -50,8 +55,8 @@ class DatasetInfo(BaseInfo):
     name: str | None
     description: str | None
     meta: dict[str, Any] | None
-    created_at: str
-    updated_at: str
+    created_at: str = datetime.now().isoformat()
+    updated_at: str = datetime.now().isoformat()
 
 
 class ImageInfo(BaseInfo):
@@ -63,11 +68,11 @@ class ImageInfo(BaseInfo):
     height: int
     width: int
     meta: dict[str, Any] | None
-    created_at: str
-    updated_at: str
+    created_at: str = datetime.now().isoformat()
+    updated_at: str = datetime.now().isoformat()
 
 
-class EntityClassInfo(BaseInfo):
+class LabelClassInfo(BaseInfo):
     """holds metadata about the annotated object class"""
 
     id: int | None
@@ -77,15 +82,15 @@ class EntityClassInfo(BaseInfo):
     meta: dict[str, Any] | None
 
 
-class EntityInfo(BaseInfo):
+class LabelInfo(BaseInfo):
     """holds metadata about the annotated object"""
 
     id: int
     class_id: int | None
     text: str | None
     geometry: list[tuple[int | float, int | float]]
-    created_at: str
-    updated_at: str
+    created_at: str = datetime.now().isoformat()
+    updated_at: str = datetime.now().isoformat()
 
 
 class AnnotationInfo(BaseInfo):
@@ -95,5 +100,5 @@ class AnnotationInfo(BaseInfo):
     image_id: int
     entity_infos_ids: list[int] | None
     meta: dict[str, Any] | None
-    created_at: str
-    updated_at: str
+    created_at: str = datetime.now().isoformat()
+    updated_at: str = datetime.now().isoformat()
