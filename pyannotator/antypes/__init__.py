@@ -7,7 +7,6 @@ from .main import (
     ImageInfo,
     ProjectInfo,
     ProjectType,
-    DatasetInfo
 )
 
 __all__ = [

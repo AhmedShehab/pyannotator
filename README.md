@@ -13,12 +13,12 @@ pip install pyannotator
 ### Using Supervisely Backend
 
 ```python
-from pyannotator import AnnotationTool, AnnoationBackend
+from pyannotator import AnnotationTool, AnnotationBackend
 
 # Initialize the annotation tool with your chosen backend
 token = "YOUR_API_TOKEN"  # Get this from your annotation service
 tool = AnnotationTool(
-    backend=AnnoationBackend.SUPERVISELY,
+    backend=AnnotationBackend.SUPERVISELY,
     token=token
 )
 
